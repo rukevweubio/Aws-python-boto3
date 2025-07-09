@@ -1,0 +1,147 @@
+# AWS Infrastructure Setup with Boto3: VPC, ALB, EC2, Docker, and Node.js Application Deployment
+
+## Project Overview
+
+This project demonstrates automated AWS infrastructure provisioning using Python and the Boto3 SDK. It creates a Virtual Private Cloud (VPC), Application Load Balancer (ALB), EC2 instance, installs Docker, and deploys a Node.js application in a Docker container. The app is accessible via the ALB, showcasing end-to-end cloud deployment.
+
+> **Note:** This dev container includes the AWS CLI and dependencies pre-installed and available on the `PATH`, along with AWS Toolkit extensions for AWS development.
+
+---
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Project Structure](#project-structure)
+- [Setup Instructions](#setup-instructions)
+- [AWS Infrastructure Components](#aws-infrastructure-components)
+- [Formulas and Key Configurations](#formulas-and-key-configurations)
+- [Usage](#usage)
+- [Cleanup](#cleanup)
+- [Technologies Used](#technologies-used)
+- [Troubleshooting](#troubleshooting)
+- [Author](#author)
+
+---
+
+## Prerequisites
+
+- **AWS Account:** Permissions to create VPC, EC2, ALB, etc.
+- **AWS CLI:** Configured with credentials (`aws configure`).
+- **IAM User:** Permissions for `ec2:Create*`, `elasticloadbalancing:Create*`, `ec2:RunInstances`, etc.
+- **Python 3.8+**
+- **Boto3:** `pip install boto3`
+- **Docker:** (Optional, for local testing)
+- **Node.js Application:** Simple app (e.g., Express.js) with a Dockerfile
+- **Git:** (Optional)
+
+---
+
+## Setup Instructions
+
+1. **Clone the Repository**
+    ```sh
+    git clone https://github.com/DEPLOY-VPC-ON-AWS-WITH-PYTHON-BOTO3
+    cd PYTHON BOTOS WITH AWS
+    ```
+
+2. **Install Python Dependencies**
+    ```sh
+    pip install -r requirements.txt
+    ```
+    `requirements.txt`:
+    ```
+    boto3==1.26.0
+    ```
+
+3. **Configure AWS Credentials**
+    ```sh
+    aws configure
+    ```
+    Provide your AWS Access Key, Secret Key, region (e.g., `us-east-1`), and output format (`json`)
+
+## AWS Infrastructure Components
+
+- **VPC:** Custom VPC with CIDR block (e.g., 10.0.0.0/16), two public subnets, Internet Gateway, and Route Table.
+- **ALB:** Application Load Balancer in public subnets, Target Group for HTTP (port 3000), Listener on port 80.
+- **EC2 Instance:** Amazon Linux 2, t2.micro, public subnet, security group for HTTP (80), SSH (22).
+- **Docker:** Installed via user data, runs Node.js app in a container.
+- **Node.js App:** Copied to EC2, built and run in Docker, exposes port 3000.
+
+---
+
+## Formulas and Key Configurations
+
+- **VPC CIDR Block:** `10.0.0.0/16` (65,536 IPs)
+  - Subnet 1: `10.0.1.0/24` (256 IPs, us-east-1a)
+  - Subnet 2: `10.0.2.0/24` (256 IPs, us-east-1b)
+  - Usable IPs per /24 subnet: `2^(32-24) - 5 = 251`
+
+- **Security Group Rules:**
+  - Inbound: HTTP (80, 0.0.0.0/0), SSH (22, your IP), Node.js (3000, ALB SG)
+  - Outbound: All (0.0.0.0/0)
+
+- **ALB Target Group:**
+  - Health check: HTTP `/`, code 200
+  - Interval: 30s, Timeout: 5s, Healthy: 3, Unhealthy: 2
+
+- **EC2 User Data:** Installs Docker, runs Node.js app in container
+  - Example: `docker run -d -p 3000:3000 nodejs-app`
+
+- **Docker Image Size:** Base `node:16` (~900 MB), final ~950 MB
+
+---
+
+## Usage
+
+- **Run the Script:**
+  ```sh
+  python scripts/deploy_infra.py
+  ```
+  The script outputs the ALB DNS name (e.g., `my-alb-123456789.us-east-1.elb.amazonaws.com`).
+
+- **Access the Application:**
+  Open the ALB DNS in your browser:  
+  `http://my-alb-123456789.us-east-1.elb.amazonaws.com`  
+  Expected: `Hello from Node.js on AWS EC2!`
+
+- **SSH into EC2 (optional):**
+  ```sh
+  ssh -i your-key.pem ec2-user@<EC2-Public-IP>
+  ```
+
+---
+
+## Cleanup
+
+To avoid AWS charges, delete resources after use:
+```sh
+python scripts/deploy_infra.py --cleanup
+```
+This terminates the EC2 instance, deletes the ALB, Target Group, and VPC.
+
+---
+
+## Technologies Used
+
+- **AWS:** VPC, EC2, ALB, Security Groups, Internet Gateway
+- **Python/Boto3:** AWS SDK for automation
+- **Docker:** Containerization
+- **Node.js/Express:** Web app
+- **Linux:** Amazon Linux 2
+
+---
+
+## Troubleshooting
+
+- **ALB DNS Not Responding:**  
+  Check Target Group health checks, EC2 instance, port 3000, and security groups.
+
+- **Docker Not Running:**  
+  SSH into EC2, check Docker: `sudo systemctl status docker`  
+  Check app: `docker ps`
+
+- **Boto3 Errors:**  
+  Verify AWS credentials, region, and IAM permissions.
+
+---
+
